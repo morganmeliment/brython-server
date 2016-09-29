@@ -12,6 +12,335 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/3.0.5/pixi.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/buzz/1.1.10/buzz.min.js"></script>
     <script type="text/javascript" src="https://cdn.rawgit.com/brython-dev/brython/3.2.5/www/src/brython.js"></script>
+    <script type = "text/javascript">
+        var GFX_Window = function(width, height, onclose) {
+            this._w;
+            this._stage;
+            this._width = (width == 0) ? window.innerWidth * 0.9 : width;
+            this._height = (height == 0) ? window.innerHeight * 0.9 : height;
+            
+            this.init = function(onclose) {
+                this._w = window.open("", "");
+                this._stage = new PIXI.Container();
+                this._renderer = PIXI.autoDetectRenderer(this._width, this._height, {'transparent':true});
+                this._w.document.body.appendChild(this._renderer.view);
+                this._w.onunload = onclose;
+                //var sprite = new PIXI.Sprite.fromImage("https://3.bp.blogspot.com/-W__wiaHUjwI/Vt3Grd8df0I/AAAAAAAAA78/7xqUNj8ujtY/s1600/image02.png");
+                //this._stage.addChild(sprite);
+            };
+            this.init(onclose);
+            
+            this.animate = function(stepCallBack) {
+                this._renderer.render(this._stage);
+                this._w.requestAnimationFrame(stepCallBack);
+            };
+            
+            this.Add = function(obj) {
+                this._stage.addChild(obj);
+            };
+            
+            this.remove = function(obj) {
+                this._stage.removeChild(obj);
+            };
+            
+            this.destroy = function() {
+                this._stage.destroy();
+                alert("hi");
+            };
+        };
+        
+        var App = function(argus) {
+            this.init(argus);
+        };
+        App.spriteList = [];
+        App._eventdict = {};
+        App._spritesdict = {};
+        App._spritesadded = false;
+        App._win = null;
+        
+        App.prototype.init = function(argus) {
+            
+            if (App._win == null && (argus.length == 0 || argus.length == 2)) {
+                var x = 0;
+                var y = 0;
+                if (argus.length == 2) {
+                    x = argus[0];
+                    y = argus[1];
+                }
+                    
+                App._win = new GFX_Window(x, y, App._destroy);
+                for (var t = 0; t < App.spriteList.length; t++) {
+                    App._win.Add(App.spriteList[t].GFX);
+                }
+                console.log(":hilo");
+                this._width = App._win._width;
+                this._height = App._win._height;
+            }
+        };
+            
+        App.step = function() {
+            //console.log("worked");
+        };
+            
+        App._animate = function() {
+            if (App.userFunc != null) {
+                App.userFunc();
+            } else {
+                App.step();
+            }
+            App._win.animate(App._animate);
+        };
+        
+        App._remove = function(obj) {
+            if (App._win != null) {
+                App._win.remove(obj.GFX);
+            }
+            App.spriteList.remove(obj);
+        };
+            
+        App.prototype.run = function(userFunc=null) {
+            App.userFunc = userFunc;
+            if (App._win) {
+                App._win.animate(App._animate);
+            } else {
+                console.log("not working");
+            }
+        };
+        
+        App._add = function(obj) {
+            if (App._win != null) {
+                App._win.Add(obj.GFX);
+            }
+            App.spriteList.push(obj);
+            if (!(obj.asset.constructor.name in App._spritesdict)) {
+                App._spritesdict[obj.asset.constructor.name] = [];
+            }
+            App._spritesdict[obj.asset.constructor.name].push(obj);
+        };
+        
+        App._destroy = function() {
+            if (App._win != null) {
+                App._win.destroy();
+            }
+            App._win = null;
+            for (var i = 0; i < App.spriteList.length; i++) {
+                App.spriteList[i].destroy();
+            }
+            App.spriteList = [];
+            App._eventdict = {};
+            App._spritesdict = {};
+            App._spritesadded = false;
+            alert("this happened");
+        };
+        
+        var Frame = function(x, y, w, h) {
+            this.GFX = PIXI.Rectangle(x,y,w,h);
+            this.x = x;
+            this.y = y;
+            this.w = w;
+            this.h = h;
+            
+            Object.defineProperty(Frame, 'x', {
+                get: function() {
+                    return this.GFX.x;
+                },
+                set: function(value) {
+                    this.GFX.x = value;
+                }
+            });
+            
+            Object.defineProperty(Frame, 'y', {
+                get: function() {
+                    return this.GFX.y;
+                },
+                set: function(value) {
+                    this.GFX.y = value;
+                }
+            });
+            
+            Object.defineProperty(Frame, 'w', {
+                get: function() {
+                    return this.GFX.width;
+                },
+                set: function(value) {
+                    this.GFX.width = value;
+                }
+            });
+            
+            Object.defineProperty(Frame, 'h', {
+                get: function() {
+                    return this.GFX.height;
+                },
+                set: function(value) {
+                    this.GFX.height = value;
+                }
+            });
+            
+            Object.defineProperty(Frame, 'center', {
+                get: function() {
+                    return (this.x + Math.round(this.w/2), this.y + Math.round(this.h/2));
+                },
+                set: function(value) {
+                    var c = this.center;
+                    this.x += value[0] - c[0];
+                    this.y += value[1] - c[1];
+                }
+            });
+        };
+        
+        var _Asset = function() {
+            this.init = function() {
+                this.GFXList = [];
+            };
+            this.init();
+            
+            this.__len__ = function() {
+                return this.GFXList.length;
+            };
+            
+            this.__getitem__ = function(index) {
+                return (this.GFXList[index] == null) ? (this.GFXList[index]) : (null);
+            };
+            
+            this.__setitem__ = function(key, value) {
+                this.GFXList[key] = value;
+            };
+
+            this.destroy = function() {
+                if (this.hasOwnProperty("GFX")) {
+                    try {
+                        for (var q = 0; q < this.GFXList.length; q++) {
+                            var gfx = this.GFXList[q];
+                            try {
+                                gfx.destroy();
+                            } catch(error) {
+                                
+                            }
+                        }
+                    } catch(error) {
+                        
+                    }
+                } 
+            };
+        };
+        
+        Object.defineProperty(_Asset.prototype, "GFX", {
+            get: function() {
+                return (this.GFXList[0] == null) ? (null) : (this.GFXList[0]);
+            },
+            set: function(value) {
+                this.GFXList[0] = value;
+            }
+        });
+
+        
+        var ImageAsset = function(url, frame=null, qty=1, direction='horizontal', margin=0) {
+            this.url = url;
+            this.frame = frame;
+            this.qty = qty;
+            this.direction = direction;
+            this.margin = margin;
+            this.init();
+        };
+        ImageAsset.prototype = new _Asset();
+        
+        ImageAsset.prototype.init = function() {
+            this.GFXList = [];
+            this._append(this.url, this.frame, this.qty, this.direction, this.margin);
+        };
+        
+        ImageAsset.prototype._subframe = function(texture, frame) {
+            return PIXI.Texture(texture, frame.GFX);
+        };
+
+        ImageAsset.prototype._append = function(url, frame, qty, direction, margin) {
+            var GFX1 = PIXI.Texture.fromImage(url, true);
+            var dx = 0;
+            var dy = 0;
+            for(var i = 0; i<qty; i++) {
+                if (frame != null) {
+                    if (direction == "horizontal") {
+                        dx = frame.w + margin;
+                    } else if (direction == "verical") {
+                        dy = frame.h + margin;
+                    }
+                    var f = Frame(frame.x + dx * i, frame.y + dy * i, frame.w, frame.h);
+                    GFX1 = this._subframe(GFX1, f);
+                }
+                this.GFXList.push(GFX1);
+            }
+        };
+        
+        var Sprite = function(asset, pos=(0,0)) {
+            this.init = function(asset, pos) {
+                this._index = 0;
+                if (ImageAsset.prototype.isPrototypeOf(asset) == true) {
+                    this.asset = asset;
+                    try {
+                        this.GFX = PIXI.Sprite.fromImage(asset.url);
+                        //console.log("nice");
+                    } catch(error) {
+                        this.GFX = null;
+                        //console.log("damn");
+                    }
+                }
+                this.position = pos;
+                try {
+                    App._add(this);
+                } catch(error) {
+                    alert(error);
+                }
+            };
+            this.init(asset, pos);
+            
+            this.destroy = function() {
+                App._remove(this);
+                this.GFX.destroy();
+            }
+            alert(App.spriteList.length);
+        };
+
+        Object.defineProperty(Sprite.prototype, "x", {
+            get: function() {
+                return (this.GFX.position.x == null) ? (null) : (this.GFX.position.x);
+            },
+            set: function(value) {
+                this.GFX.position.x = value;
+            }
+        });
+        
+        Object.defineProperty(Sprite.prototype, "y", {
+            get: function() {
+                return (this.GFX.position.y == null) ? (null) : (this.GFX.position.y);
+            },
+            set: function(value) {
+                this.GFX.position.y = value;
+            }
+        });
+        
+        Object.defineProperty(Sprite.prototype, "position", {
+            get: function() {
+                return (this.GFX.position.x == null || this.GFX.position.y == null) ? (null) : ((this.GFX.position.x, this.GFX.position.y));
+            },
+            set: function(value) {
+                this.GFX.position.x = value[0];
+                this.GFX.position.y = value[1];
+            }
+        });
+        
+//from browser import window, document
+//from javascript import JSObject, JSConstructor
+
+//ImageAsset = JSConstructor(window.ImageAsset)
+//myImage = ImageAsset("https://3.bp.blogspot.com/-W__wiaHUjwI/Vt3Grd8df0I/AAAAAAAAA78/7xqUNj8ujtY/s1600/image02.png")
+//Sprite = JSConstructor(window.Sprite)
+//mySprite = Sprite(myImage, (10, 10))
+
+//App = JSConstructor(window.App)
+//myApp = App([300, 300])
+//myApp.run()
+        
+    </script>
 <script type="text/python">
 from browser import document, window
 import traceback
